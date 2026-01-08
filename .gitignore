@@ -1,0 +1,24 @@
+# Sensitive files
+.credentials.json
+settings.local.json
+
+# Cache and runtime data
+cache/
+debug/
+shell-snapshots/
+todos/
+file-history/
+plans/
+agents/
+projects/
+
+# Stats and history
+stats-cache.json
+history.jsonl
+statsig/
+
+# IDE integration
+ide/
+
+# Plugins (may contain local paths)
+plugins/
