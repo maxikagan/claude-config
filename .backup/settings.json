@@ -1,8 +1,4 @@
 {
-  "enabledPlugins": {
-    "github@claude-plugins-official": true,
-    "commit-commands@claude-plugins-official": true
-  },
   "permissions": {
     "allow": [],
     "deny": []
@@ -26,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\repos\\claude-config\\hooks\\git-status.ps1\""
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\kagan\\.claude\\hooks\\git-status.ps1\""
           }
         ]
       }

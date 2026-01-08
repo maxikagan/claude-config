@@ -1,23 +1,20 @@
 #!/usr/bin/env pwsh
-# Git status hook for Claude Code configuration sync
-# Checks if claude-config repo is out of sync with remote
+# Git status hook for Claude Code session start
+# Checks git status and warns about sync issues
 
 $ErrorActionPreference = "SilentlyContinue"
 
-# Path to the claude-config repo
-$RepoPath = "$env:USERPROFILE\repos\claude-config"
-
-# Check if repo exists
-if (-not (Test-Path "$RepoPath\.git")) {
-    Write-Output "WARNING: claude-config repo not found at $RepoPath"
-    exit 0
+# Check if we're in a git repository
+$gitRoot = git rev-parse --show-toplevel 2>$null
+if (-not $gitRoot) {
+    exit 0  # Not a git repo, silently exit
 }
 
 $output = @()
-$output += "=== Claude Config Sync Status ==="
+$output += "=== Git Status ==="
 
 # Get current branch
-$branch = git -C $RepoPath branch --show-current 2>$null
+$branch = git branch --show-current 2>$null
 if ($branch) {
     $output += "Branch: $branch"
 } else {
@@ -25,19 +22,19 @@ if ($branch) {
 }
 
 # Fetch from remote (silently)
-git -C $RepoPath fetch --quiet 2>$null
+git fetch --quiet 2>$null
 
 # Check if we're behind/ahead of remote
-$tracking = git -C $RepoPath rev-parse --abbrev-ref "@{upstream}" 2>$null
+$tracking = git rev-parse --abbrev-ref "@{upstream}" 2>$null
 if ($tracking) {
-    $behind = git -C $RepoPath rev-list --count "HEAD..$tracking" 2>$null
-    $ahead = git -C $RepoPath rev-list --count "$tracking..HEAD" 2>$null
+    $behind = git rev-list --count "HEAD..$tracking" 2>$null
+    $ahead = git rev-list --count "$tracking..HEAD" 2>$null
 
     if ([int]$behind -gt 0) {
-        $output += "WARNING: $behind commit(s) behind remote - consider pulling!"
+        $output += "WARNING: $behind commit(s) behind remote - consider pulling"
     }
     if ([int]$ahead -gt 0) {
-        $output += "INFO: $ahead commit(s) ahead of remote (unpushed)"
+        $output += "INFO: $ahead commit(s) ahead of remote"
     }
     if ([int]$behind -eq 0 -and [int]$ahead -eq 0) {
         $output += "Up to date with $tracking"
@@ -47,7 +44,7 @@ if ($tracking) {
 }
 
 # Show working tree status summary
-$status = git -C $RepoPath status --porcelain 2>$null
+$status = git status --porcelain 2>$null
 if ($status) {
     $modified = ($status | Where-Object { $_ -match "^ M|^M" }).Count
     $added = ($status | Where-Object { $_ -match "^A" }).Count
@@ -60,12 +57,12 @@ if ($status) {
     if ($deleted -gt 0) { $changes += "$deleted deleted" }
     if ($untracked -gt 0) { $changes += "$untracked untracked" }
 
-    $output += "Local changes: $($changes -join ', ')"
+    $output += "Working tree: $($changes -join ', ')"
 } else {
     $output += "Working tree: clean"
 }
 
-$output += "================================="
+$output += "=================="
 
 # Output to stdout for Claude's context
 $output | ForEach-Object { Write-Output $_ }
