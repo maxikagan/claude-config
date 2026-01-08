@@ -8,28 +8,5 @@
     "deny": []
   },
   "env": {},
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\kagan\\.claude\\hooks\\notify.ps1\""
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\repos\\claude-config\\hooks\\git-status.ps1\""
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
