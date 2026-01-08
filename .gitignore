@@ -2,6 +2,15 @@
 .credentials.json
 settings.local.json
 
+# Platform-specific hooks (Windows PowerShell)
+hooks/*.ps1
+hooks/*.vbs
+hooks/*.log
+
+# Local state
+last_notification.json
+session-names.json
+
 # Cache and runtime data
 cache/
 debug/
