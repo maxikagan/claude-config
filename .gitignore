@@ -11,6 +11,7 @@ file-history/
 plans/
 agents/
 projects/
+paste-cache/
 
 # Stats and history
 stats-cache.json
@@ -22,3 +23,6 @@ ide/
 
 # Plugins (may contain local paths)
 plugins/
+
+# Other projects/repos
+claude-slack/
