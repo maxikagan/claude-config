@@ -29,3 +29,8 @@ plugins/
 
 # Other projects/repos
 claude-slack/
+
+# Savio-specific agents
+AGENTS_SAVIO.md
+CLAUDE.md
+SESSION_LOG.md
