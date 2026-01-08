@@ -9,9 +9,12 @@ shell-snapshots/
 todos/
 file-history/
 plans/
-agents/
 projects/
 paste-cache/
+session-env/
+
+# Experimental/local projects
+claude-slack-cross/
 
 # Stats and history
 stats-cache.json
