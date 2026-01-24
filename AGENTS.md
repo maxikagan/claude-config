@@ -68,3 +68,70 @@ Actions:
 - Compact when log exceeds ~200 lines
 
 **Output**: Updated SESSION_LOG.md with new entry or compacted log
+
+---
+
+## SLURM Scheduler Agent
+
+**Purpose**: Optimize SLURM job configuration and monitor job status on Savio HPC.
+
+**When to use**:
+1. Before writing any SLURM script (to select optimal partition/resources)
+2. After submitting jobs (to check queue status)
+3. Proactively during long-running jobs (to report status)
+
+**Partition reference**:
+| Partition | Cores | RAM | Use Case |
+|-----------|-------|-----|----------|
+| savio2 | 24 | ~64 GB | Small jobs, light data |
+| savio3 | 32 | ~95 GB | Medium jobs |
+| savio3_bigmem | 32 | ~386 GB | Large memory operations |
+| savio3_xlmem | - | - | Only if absolutely necessary |
+
+**How to invoke**:
+Use Task tool with subagent_type="general-purpose" and prompt:
+"SLURM SCHEDULER: [REQUEST]"
+
+Requests:
+- "SLURM SCHEDULER: ANALYZE - [job description] - recommend partition and resources"
+- "SLURM SCHEDULER: STATUS - check queue for my jobs"
+- "SLURM SCHEDULER: TEMPLATE - [job type] - generate SLURM script"
+
+**Output**: Partition recommendation with reasoning, or job status report
+
+---
+
+## Deep Analysis Agent (Zen MCP)
+
+**Purpose**: Multi-model analysis for complex architectural decisions, planning, and difficult debugging.
+
+**When to use**:
+- Complex architectural decisions requiring multiple perspectives
+- Multi-step project planning with branching possibilities
+- Difficult debugging that standard review can't solve
+- When you need a "second opinion" from external AI models
+
+**When NOT to use**:
+- Routine code review (use general-purpose CODE REVIEW instead)
+- Simple tasks or quick checks
+- First-pass analysis (try standard approach first)
+
+**Available tools** (invoke directly, not via Task):
+| Tool | Purpose |
+|------|---------|
+| `mcp__zen__planner` | Complex project planning with revision/branching |
+| `mcp__zen__thinkdeep` | Multi-stage investigation and reasoning |
+| `mcp__zen__codereview` | Deep code review with expert validation |
+| `mcp__zen__debug` | Systematic debugging with hypothesis testing |
+| `mcp__zen__consensus` | Multi-model debate for architectural decisions |
+
+**Model availability**:
+- ✅ **Gemini**: `flash` (fast), `pro` (deep reasoning)
+- ❌ **OpenAI**: API key invalid (401 error as of 2026-01-12)
+
+**How to invoke**:
+Call zen tools directly with appropriate model:
+- Use `flash` or `gemini-2.5-flash` for speed
+- Use `pro` or `gemini-2.5-pro` for depth
+
+**Output**: Structured analysis with expert validation from external model
