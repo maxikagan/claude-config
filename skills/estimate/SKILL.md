@@ -1,10 +1,19 @@
 ---
-allowed-tools: Bash, Read, Glob, Grep
-argument-hint: <job-description>
+name: estimate
 description: Estimate memory and partition for a SLURM job
+user-invocable: true
+allowed-tools: Bash, Read, Glob, Grep
 ---
 
-Analyze this job and recommend SLURM settings: $ARGUMENTS
+# SLURM Job Estimation
+
+Analyze a job description and recommend SLURM settings.
+
+## Usage
+
+```
+/estimate <job-description>
+```
 
 ## Analysis Steps
 
