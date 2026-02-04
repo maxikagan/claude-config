@@ -8,16 +8,32 @@
       "Read:/global/home/users/maxkagan/**",
       "Read:/global/scratch/users/maxkagan/**",
       "Write:/global/home/users/maxkagan/.claude/SESSION_LOG.md",
-      "Edit:/global/home/users/maxkagan/.claude/SESSION_LOG.md"
+      "Edit:/global/home/users/maxkagan/.claude/SESSION_LOG.md",
+      "mcp__google-calendar__*",
+      "mcp__obsidian__*",
+      "Skill(interview)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(git gc:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   },
-  "hooks": {},
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:/Users/kagan/.claude/hooks/explanatory-session-start.py\""
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
-    "github@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true,
-    "ralph-loop@claude-plugins-official": true,
-    "explanatory-output-style@claude-plugins-official": true,
-    "slack@claude-plugins-official": true
+    "ralph-loop@claude-plugins-official": false,
+    "explanatory-output-style@claude-plugins-official": false
   }
 }

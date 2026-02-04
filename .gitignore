@@ -21,6 +21,8 @@ plans/
 projects/
 paste-cache/
 session-env/
+telemetry/
+tasks/
 
 # Experimental/local projects
 claude-slack-cross/

@@ -4,6 +4,39 @@
 
 $ErrorActionPreference = "SilentlyContinue"
 
+# Add FlashWindow API for taskbar flashing (more reliable than toasts)
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class FlashWindow {
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct FLASHWINFO {
+        public uint cbSize;
+        public IntPtr hwnd;
+        public uint dwFlags;
+        public uint uCount;
+        public uint dwTimeout;
+    }
+
+    public const uint FLASHW_ALL = 3;
+    public const uint FLASHW_TIMERNOFG = 12;
+
+    public static void Flash(IntPtr hwnd) {
+        FLASHWINFO fi = new FLASHWINFO();
+        fi.cbSize = (uint)Marshal.SizeOf(fi);
+        fi.hwnd = hwnd;
+        fi.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+        fi.uCount = 0;
+        fi.dwTimeout = 0;
+        FlashWindowEx(ref fi);
+    }
+}
+"@
+
 # Read JSON input from stdin
 $jsonInput = ""
 while ($line = [Console]::ReadLine()) {
@@ -22,6 +55,39 @@ try {
     $message = if ($data.message) { $data.message } else { "Claude needs your attention" }
     $notificationType = $data.notification_type
     $cwd = $data.cwd
+    $sessionId = $data.session_id
+
+    # Create a friendly session name from session_id
+    # Uses a persistent mapping file so the same session always gets the same number
+    $sessionName = $null
+    if ($sessionId) {
+        $mappingFile = "$env:USERPROFILE\.claude\session-names.json"
+        $mapping = @{}
+        if (Test-Path $mappingFile) {
+            try {
+                $content = Get-Content $mappingFile -Raw -Encoding UTF8
+                $parsed = $content | ConvertFrom-Json
+                # Convert PSObject to hashtable
+                $parsed.PSObject.Properties | ForEach-Object { $mapping[$_.Name] = $_.Value }
+            } catch { $mapping = @{} }
+        }
+
+        if ($mapping.ContainsKey($sessionId)) {
+            $sessionName = $mapping[$sessionId]
+        } else {
+            # Assign next available number
+            $existingNums = @()
+            foreach ($val in $mapping.Values) {
+                if ($val -match "^session-(\d+)$") {
+                    $existingNums += [int]$Matches[1]
+                }
+            }
+            $nextNum = if ($existingNums.Count -gt 0) { ($existingNums | Measure-Object -Maximum).Maximum + 1 } else { 1 }
+            $sessionName = "session-$nextNum"
+            $mapping[$sessionId] = $sessionName
+            $mapping | ConvertTo-Json | Set-Content $mappingFile -Encoding UTF8 -NoNewline
+        }
+    }
 
     # Try to get the terminal/console window info by walking up the process tree
     $tabName = $null
@@ -56,13 +122,16 @@ try {
         # Ignore errors in window title detection
     }
 
-    # Fallback to folder name if no tab name found
-    if (-not $tabName) {
-        if ($cwd) {
-            $tabName = Split-Path -Leaf $cwd
-        } else {
-            $tabName = "Claude Code"
-        }
+    # Priority for identifying the session:
+    # 1. Session name (from session_id mapping) - most reliable
+    # 2. Folder name from cwd - fallback
+    # 3. "Claude Code" - last resort
+    if ($sessionName) {
+        $tabName = $sessionName
+    } elseif ($cwd) {
+        $tabName = Split-Path -Leaf $cwd
+    } elseif (-not $tabName) {
+        $tabName = "Claude Code"
     }
 
     # Format the title based on notification type
@@ -80,6 +149,19 @@ try {
     if ($message.Length -gt 200) {
         $message = $message.Substring(0, 197) + "..."
     }
+
+    # Flash the taskbar icon (most reliable attention-getter)
+    if ($terminalPid) {
+        try {
+            $proc = Get-Process -Id $terminalPid -ErrorAction SilentlyContinue
+            if ($proc -and $proc.MainWindowHandle -ne [IntPtr]::Zero) {
+                [FlashWindow]::Flash($proc.MainWindowHandle)
+            }
+        } catch { }
+    }
+
+    # Play system notification sound (audible even when looking away)
+    [System.Media.SystemSounds]::Exclamation.Play()
 
     # Create toast with click action to focus the terminal window
     if ($terminalPid) {
