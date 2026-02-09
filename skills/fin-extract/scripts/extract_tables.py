@@ -25,6 +25,70 @@ from pathlib import Path
 
 import pdfplumber
 
+def extract_table_with_words(page, table):
+    """Extract table data using page-level word detection for proper spacing.
+
+    Instead of table.extract() which concatenates text within cells,
+    this uses page.extract_words() to get properly-spaced words, then
+    assigns them to cells based on spatial overlap.
+    """
+    words = page.extract_words(x_tolerance=2, y_tolerance=3, keep_blank_chars=True)
+    cells = table.cells
+    if not cells:
+        return table.extract(x_tolerance=15)
+
+    rows_dict = {}
+    for cell in cells:
+        x0, top, x1, bottom = cell
+        row_key = round(top, 0)
+        if row_key not in rows_dict:
+            rows_dict[row_key] = {}
+
+    row_keys = sorted(rows_dict.keys())
+    col_positions = sorted(set(round(c[0], 0) for c in cells))
+
+    grid = {}
+    for cell in cells:
+        x0, top, x1, bottom = cell
+        row_key = min(row_keys, key=lambda r: abs(r - round(top, 0)))
+        col_key = min(col_positions, key=lambda c: abs(c - round(x0, 0)))
+        grid[(row_key, col_key)] = (x0, top, x1, bottom)
+
+    cell_texts = {}
+    for word in words:
+        wx_center = (word["x0"] + word["x1"]) / 2
+        wy_center = (word["top"] + word["bottom"]) / 2
+
+        best_cell = None
+        best_area = 0
+        for cell_key, (cx0, ctop, cx1, cbottom) in grid.items():
+            if cx0 - 2 <= wx_center <= cx1 + 2 and ctop - 2 <= wy_center <= cbottom + 2:
+                area = (cx1 - cx0) * (cbottom - ctop)
+                if best_cell is None or area < best_area:
+                    best_cell = cell_key
+                    best_area = area
+
+        if best_cell is not None:
+            if best_cell not in cell_texts:
+                cell_texts[best_cell] = []
+            cell_texts[best_cell].append((word["x0"], word["top"], word["text"]))
+
+    result = []
+    for row_key in row_keys:
+        row_cells = []
+        for col_key in col_positions:
+            key = (row_key, col_key)
+            if key in cell_texts:
+                sorted_words = sorted(cell_texts[key], key=lambda w: (w[1], w[0]))
+                text = " ".join(w[2] for w in sorted_words)
+                row_cells.append(text.strip())
+            else:
+                row_cells.append(None)
+        result.append(row_cells)
+
+    return result
+
+
 CURRENCY_PREFIX = re.compile(r"^\s*(?:Ps\.?\s*|MXN\s*|USD\s*|US[$]\s*|[$]\s*)")
 PARENTHETICAL_NEG = re.compile(r"^\s*\(\s*([\d,.\s]+)\s*\)\s*$")
 FOOTNOTE_PATTERN = re.compile(r"^\s*(?:\d{1,2}\s*[\)\.]|[*†‡§¹²³⁴⁵]|\(\d\))\s*")
@@ -140,10 +204,13 @@ def is_rgb_artifact(cell):
     if not s:
         return True
     parts = re.split(r"[,\s]+", s)
-    return all(
-        p.isdigit() and 0 <= int(p) <= 255
-        for p in parts if p
-    )
+    try:
+        return all(
+            p.isascii() and p.isdigit() and 0 <= int(p) <= 255
+            for p in parts if p
+        )
+    except (ValueError, OverflowError):
+        return False
 
 
 def detect_artifact_columns(table):
@@ -251,7 +318,7 @@ def merge_columns(table, merge_cols):
 
 
 def clean_presentation_artifacts(table):
-    """Remove RGB color columns, merge continuation columns, and drop empty rows."""
+    """Remove RGB color columns, merge continuation columns, drop empty rows."""
     if not table:
         return table
 
@@ -322,7 +389,7 @@ def extract_tables_from_page(page):
             cell_count = sum(
                 sum(1 for cell in row if cell is not None and str(cell).strip())
                 for table in tables
-                for row in table.extract(x_tolerance=15)
+                for row in extract_table_with_words(page, table)
             )
             if cell_count > best_cell_count:
                 best_cell_count = cell_count
@@ -462,7 +529,7 @@ def main():
 
         extracted = []
         for table, strategy in tables_with_strategy:
-            raw = table.extract(x_tolerance=15)
+            raw = extract_table_with_words(page, table)
             cleaned_for_detection = clean_presentation_artifacts(raw)
             for row in cleaned_for_detection:
                 all_cells.extend(c for c in row if c is not None)
@@ -551,7 +618,8 @@ def main():
     print(f"\nDone. {len(csv_files)} CSV files written to {output_dir}", file=sys.stderr)
     print(f"Metadata: {metadata_path}", file=sys.stderr)
 
-    print(json.dumps(metadata, indent=2, ensure_ascii=False))
+    sys.stdout.buffer.write(json.dumps(metadata, indent=2, ensure_ascii=False).encode("utf-8"))
+    sys.stdout.buffer.write(b"\n")
 
 
 if __name__ == "__main__":

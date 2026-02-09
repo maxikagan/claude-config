@@ -21,6 +21,8 @@ All scripts live in `~/.claude/skills/fin-extract/scripts/`:
 - `scan_pdf.py` — Phase 1: lightweight page mapper (outputs JSON)
 - `extract_tables.py` — Phase 2: precision table extraction (outputs CSV)
 - `extract_text.py` — Phase 3: text extraction for cross-validation (outputs JSON)
+- `batch_extract.py` — Batch pipeline: scan → select pages → extract → classify for all PDFs in a directory
+- `build_workbook.py` — Aggregate all extracted CSVs into a multi-tab Excel workbook
 
 ## Workflow
 
@@ -97,19 +99,52 @@ Compare numbers from the text extraction against the CSV tables. Report any disc
 - Header row labels (confirm they match between methods)
 - Number of data rows (should be consistent)
 
-### Step 6: Deliver Results
+### Step 6: Read and Rename CSVs
+
+After extraction, read each CSV's first few rows to identify what statement it contains. Rename or note each table with a human-readable name:
+- `income_statement_3Q25.csv` instead of `page_25_table_1.csv`
+- `balance_sheet_3Q25.csv` instead of `page_26_table_1.csv`
+- `noi_ebitda_3Q25.csv`, `ffo_affo_3Q25.csv`, `cash_flow_3Q25.csv`, `key_indicators_3Q25.csv`
+
+Use the header rows and the report's filename (e.g., `3Q25.pdf`) to determine the statement type and period.
+
+### Step 7: Deliver Results
 
 Present a summary:
-- Number of tables extracted
+- Number of tables extracted, with human-readable names
 - Validation results (how many row totals checked out)
-- Any discrepancies found
-- Detected scale (e.g., "millions of pesos") and currency
+- Detected scale (e.g., "thousands of pesos") and currency
 - Path to output directory with CSV files
 
 Offer next steps:
 - "Want me to combine these into an Excel workbook with tabs per statement?"
+- "Want me to build a time-series workbook across multiple quarters?"
 - "Want me to read specific values from these tables?"
-- "Want me to compare these against another quarter's report?"
+
+### Step 8 (Optional): Build Excel Workbook
+
+When the user wants an Excel workbook (single report or multi-quarter aggregate):
+
+```python
+import openpyxl
+import pandas as pd
+
+wb = openpyxl.Workbook()
+# For each CSV, read as strings and write to a named tab
+for csv_path, tab_name in tables:
+    df = pd.read_csv(csv_path, dtype=str, header=None)
+    ws = wb.create_sheet(title=tab_name)
+    for row in df.itertuples(index=False):
+        ws.append(list(row))
+
+wb.remove(wb["Sheet"])  # remove default sheet
+wb.save("output.xlsx")
+```
+
+For multi-quarter aggregation:
+- Each statement type gets its own tab (e.g., "Income Statement")
+- Quarters are stacked vertically with a blank row separator and period header
+- Or quarters go in columns for time-series comparison — ask the user which layout they prefer
 
 ## Important Rules
 
@@ -191,10 +226,54 @@ Want me to combine these into an Excel workbook?
 
 ## Batch Processing Multiple Reports
 
-When the user has many reports (e.g., 19 quarterly PDFs), use a loop approach:
+Two scripts automate multi-report extraction and aggregation.
 
-1. **Scan all reports** to identify which pages contain financial statements in each one. Page numbers may shift between quarters as the report format evolves.
-2. **Extract in batch** by iterating over each PDF with the appropriate page numbers.
-3. **Output directory convention**: `<pdf_stem>_tables/` next to each source PDF.
+### `batch_extract.py`
 
-Since FIBRA Soma reports are presentation-style PDFs with consistent formatting (colored sidebars, same layout), the artifact cleaning handles them automatically. But page numbers for specific statements may vary between quarters — always scan first, don't assume fixed page numbers.
+Processes all PDFs in a directory through the full pipeline: scan → page selection → table extraction → statement classification and renaming.
+
+```bash
+python ~/.claude/skills/fin-extract/scripts/batch_extract.py <pdf_directory> [--output-dir <dir>]
+```
+
+- PDFs must be named with a period prefix like `3Q25.pdf` — the period is derived from the filename
+- For each PDF, scans pages, selects those with 2+ financial keywords and at least one table (capped at 15 pages), extracts tables, then classifies CSVs by statement type using regex matching on headers
+- Output per PDF: `<period>_tables/` directory containing named CSVs (`income_statement_3Q25.csv`, `balance_sheet_3Q25.csv`, etc.) plus `_metadata.json`
+- Duplicates get `_2`, `_3` suffixes (e.g., `noi_ebitda_2_3Q25.csv`) — these are secondary tables on the same topic, usually breakdowns or supporting detail
+- Unclassified tables keep their `page_N_table_M` names
+- Outputs JSON summary to stdout; progress and diagnostics go to stderr
+- Uses `sys.stdout.buffer.write()` for JSON output to avoid Windows cp1252 encoding errors
+
+Statement types detected: `income_statement`, `balance_sheet`, `cash_flow`, `noi_ebitda`, `ffo_affo`, `key_indicators`, `credit_profile`.
+
+### `build_workbook.py`
+
+Reads all `*_tables/` directories and creates a single Excel workbook with one tab per statement type.
+
+```bash
+python ~/.claude/skills/fin-extract/scripts/build_workbook.py <tables_parent_dir> [--output <path.xlsx>]
+```
+
+- Default output: `fibrasoma_aggregate.xlsx` in the parent directory
+- By default, includes only the 7 primary statement types (skips duplicates and unclassified pages). Pass `--all` to include everything.
+- Quarters are stacked vertically within each tab, sorted chronologically (1Q21 → 3Q25), separated by blue period header rows
+- Formatting: bold column headers, blue merged period header rows with white text, auto-width columns, frozen panes at row 3
+
+### Typical batch workflow
+
+```bash
+# Extract all 19 quarterly PDFs
+python ~/.claude/skills/fin-extract/scripts/batch_extract.py ~/fibrasoma_reports/
+
+# Build aggregate workbook (primary statement types only)
+python ~/.claude/skills/fin-extract/scripts/build_workbook.py ~/fibrasoma_reports/
+
+# Build workbook including all tables
+python ~/.claude/skills/fin-extract/scripts/build_workbook.py ~/fibrasoma_reports/ --all
+```
+
+### Windows notes
+
+- All subprocess calls use `encoding="utf-8", errors="replace"` to handle non-ASCII chars from pdfplumber
+- File renames use explicit delete-then-rename (`safe_rename`) because `Path.rename()` doesn't overwrite on Windows
+- Page numbers vary between quarters as report formats evolve — the scanner handles this automatically

@@ -1,12 +1,13 @@
 {
-  "autoUpdatesChannel": "latest",
   "env": {
-    "CLAUDE_CODE_TMPDIR": "/global/home/users/maxkagan/.claude/tmp"
+    "CLAUDE_CODE_TMPDIR": "/global/home/users/maxkagan/.claude/tmp",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
     "allow": [
       "Read:/global/home/users/maxkagan/**",
       "Read:/global/scratch/users/maxkagan/**",
+      "Read:C:/Users/kagan/my-project/**",
       "Write:/global/home/users/maxkagan/.claude/SESSION_LOG.md",
       "Edit:/global/home/users/maxkagan/.claude/SESSION_LOG.md",
       "mcp__google-calendar__*",
@@ -19,21 +20,16 @@
     "deny": [],
     "defaultMode": "acceptEdits"
   },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python \"C:/Users/kagan/.claude/hooks/explanatory-session-start.py\""
-          }
-        ]
-      }
-    ]
-  },
+  "hooks": {},
   "enabledPlugins": {
     "commit-commands@claude-plugins-official": true,
     "ralph-loop@claude-plugins-official": false,
-    "explanatory-output-style@claude-plugins-official": false
-  }
+    "explanatory-output-style@claude-plugins-official": false,
+    "superpowers@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true
+  },
+  "autoUpdatesChannel": "latest"
 }
