@@ -17,25 +17,41 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "type": "command",
-        "command": "python3 ~/.claude/hooks/keyword-detector.py"
+        "matcher": {},
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/keyword-detector.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "type": "command",
-        "command": "python3 ~/.claude/hooks/check-comments.py",
-        "toolNames": ["Write", "Edit"]
+        "matcher": {
+          "tools": ["Write", "Edit"]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/check-comments.py"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "python3 ~/.claude/hooks/todo-enforcer.py"
-      },
-      {
-        "type": "command",
-        "command": "python3 ~/.claude/hooks/stop-hook.py"
+        "matcher": {},
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/todo-enforcer.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/stop-hook.py"
+          }
+        ]
       }
     ]
   },
